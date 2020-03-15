@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter, Result};
 
 pub trait TokenKind: Debug + PartialEq {
     fn is_error(&self) -> bool;
@@ -16,5 +16,15 @@ where
 {
     pub fn new(span: &'a str, kind: K) -> Self {
         Self { kind, span }
+    }
+}
+
+impl<'a, K> Display for Token<'a, K>
+where
+    K: TokenKind,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "{:?}", self.kind)?;
+        write!(f, " `{}`", self.span)
     }
 }

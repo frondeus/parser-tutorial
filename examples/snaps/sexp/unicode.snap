@@ -1,0 +1,19 @@
+```
+(add 2 (京 4 5))
+```
+
+[
+    "OpenParent `(`",
+    "Atom `add`",
+    "Trivia ` `",
+    "Atom `2`",
+    "Trivia ` `",
+    "OpenParent `(`",
+    "Atom `京`",
+    "Trivia ` `",
+    "Atom `4`",
+    "Trivia ` `",
+    "Atom `5`",
+    "CloseParent `)`",
+    "CloseParent `)`",
+]

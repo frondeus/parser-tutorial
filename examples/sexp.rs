@@ -49,135 +49,19 @@ pub fn lexer<'a>(input: &'a str) -> impl Lexer<'a, Token> {
 
 #[cfg(test)]
 mod tests {
-    use super::Token::*;
     use super::*;
-    use parsing_tutorial::token::Token;
+    use test_case::test_case;
 
-    #[test]
-    fn lexer_test() {
-        let input = "(add 2 (京 4 5))";
-        let mut lexer = lexer(input);
-        let res: Vec<_> = lexer.collect();
-        assert_eq!(
-            res,
-            vec![
-                Token {
-                    kind: OpenParent,
-                    span: "(",
-                },
-                Token {
-                    kind: Atom,
-                    span: "add",
-                },
-                Token {
-                    kind: Trivia,
-                    span: " ",
-                },
-                Token {
-                    kind: Atom,
-                    span: "2",
-                },
-                Token {
-                    kind: Trivia,
-                    span: " ",
-                },
-                Token {
-                    kind: OpenParent,
-                    span: "(",
-                },
-                Token {
-                    kind: Atom,
-                    span: "京",
-                },
-                Token {
-                    kind: Trivia,
-                    span: " ",
-                },
-                Token {
-                    kind: Atom,
-                    span: "4",
-                },
-                Token {
-                    kind: Trivia,
-                    span: " ",
-                },
-                Token {
-                    kind: Atom,
-                    span: "5",
-                },
-                Token {
-                    kind: CloseParent,
-                    span: ")",
-                },
-                Token {
-                    kind: CloseParent,
-                    span: ")",
-                },
-            ]
-        );
-    }
+    #[test_case("(add 2 (京 4 5))", "unicode" ; "unicode")]
+    #[test_case("(add 2 (+++ 4 5))", "error" ; "error")]
+    fn lexer_tests(input: &str, test_case_name: &str) {
+        let lexer = lexer(input);
 
-    #[test]
-    fn lexer_error() {
-        let input = "(add 2 (+++ 4 5))";
-        let mut lexer = lexer(input);
-        let res: Vec<_> = lexer.collect();
-        assert_eq!(
-            res,
-            vec![
-                Token {
-                    kind: OpenParent,
-                    span: "(",
-                },
-                Token {
-                    kind: Atom,
-                    span: "add",
-                },
-                Token {
-                    kind: Trivia,
-                    span: " ",
-                },
-                Token {
-                    kind: Atom,
-                    span: "2",
-                },
-                Token {
-                    kind: Trivia,
-                    span: " ",
-                },
-                Token {
-                    kind: OpenParent,
-                    span: "(",
-                },
-                Token {
-                    kind: Error,
-                    span: "+++",
-                },
-                Token {
-                    kind: Trivia,
-                    span: " ",
-                },
-                Token {
-                    kind: Atom,
-                    span: "4",
-                },
-                Token {
-                    kind: Trivia,
-                    span: " ",
-                },
-                Token {
-                    kind: Atom,
-                    span: "5",
-                },
-                Token {
-                    kind: CloseParent,
-                    span: ")",
-                },
-                Token {
-                    kind: CloseParent,
-                    span: ")",
-                },
-            ]
+        let res: Vec<_> = lexer.map(|t| t.to_string()).collect();
+        parsing_tutorial::testing::snap(
+            format!("```\n{}\n```\n\n{:#?}", input, res),
+            file!(),
+            test_case_name,
         );
     }
 }
