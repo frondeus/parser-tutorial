@@ -1,5 +1,6 @@
 use parsing_tutorial::lexer::{Lex, Lexer};
 use parsing_tutorial::token::TokenKind;
+use parsing_tutorial::input::Input;
 
 #[derive(Debug, PartialEq)]
 pub enum Token {
@@ -19,30 +20,26 @@ impl TokenKind for Token {
     }
 }
 
-pub fn lexer<'a>(input: &'a str) -> impl Lexer<'a, Token> {
-    Lex::new(input, |i: &'a str| {
-        Some(match i.chars().next()? {
+pub fn lexer(input: &str) -> impl Lexer<Token> {
+    Lex::new(input, |i: &mut Input| {
+        Some(match i.as_ref().chars().next()? {
             c if c.is_whitespace() => {
-                let rest = i
-                    .char_indices()
-                    .take_while(|(_, c)| c.is_whitespace())
-                    .last()
-                    .map(|(idx, c)| idx + c.len_utf8())
-                    .unwrap_or_default();
-                (Token::Trivia, &i[rest..])
+                let rest = i.as_ref()
+                    .chars()
+                    .take_while(|c| c.is_whitespace())
+                    .count();
+                (Token::Trivia, i.chomp(rest))
             }
             c if c.is_alphanumeric() => {
-                let rest = i
-                    .char_indices()
-                    .take_while(|(_, c)| c.is_alphanumeric())
-                    .last()
-                    .map(|(idx, c)| idx + c.len_utf8())
-                    .unwrap_or_default();
-                (Token::Atom, &i[rest..])
+                let rest = i.as_ref()
+                    .chars()
+                    .take_while(|c| c.is_alphanumeric())
+                    .count();
+                (Token::Atom, i.chomp(rest))
             }
-            '(' => (Token::OpenParent, &i[1..]),
-            ')' => (Token::CloseParent, &i[1..]),
-            _ => (Token::Error, &i[1..]),
+            '(' => (Token::OpenParent, i.chomp(1)),
+            ')' => (Token::CloseParent, i.chomp(1)),
+            _ => (Token::Error, i.chomp(1)),
         })
     })
 }
@@ -57,7 +54,7 @@ mod tests {
     fn lexer_tests(input: &str, test_case_name: &str) {
         let lexer = lexer(input);
 
-        let res: Vec<_> = lexer.map(|t| t.to_string()).collect();
+        let res: Vec<_> = lexer.map(|t| t.display(input).to_string()).collect();
         parsing_tutorial::testing::snap(
             format!("```\n{}\n```\n\n{:#?}", input, res),
             file!(),
@@ -65,3 +62,5 @@ mod tests {
         );
     }
 }
+
+fn main() {}

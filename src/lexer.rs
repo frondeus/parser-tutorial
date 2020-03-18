@@ -1,83 +1,74 @@
-use crate::offset::Offset;
 use crate::peekable::PeekableIterator;
 use crate::token::{Token, TokenKind};
+use crate::input::Input;
+use crate::TextRange;
 
-pub trait Lexer<'a, K>
+pub trait Lexer<K>
 where
-    Self: PeekableIterator<Item = Token<'a, K>>,
+    Self: PeekableIterator<Item = Token<K>>,
     K: TokenKind,
 {
-    fn input(&self) -> &'a str;
-    fn set_input(&mut self, input: &'a str);
+    fn input(&self) -> Input;
+    fn set_input(&mut self, input: Input);
 }
 
-pub struct Lex<'a, F, K>
+pub struct Lex<F, K>
 where
     K: TokenKind,
 {
-    input: &'a str,
+    input: Input,
     f: F,
     #[allow(clippy::option_option)]
-    peeked: Option<Option<Token<'a, K>>>,
+    peeked: Option<Option<Token<K>>>,
 }
 
-impl<'a, F, K> Lex<'a, F, K>
+impl<F, K> Lex<F, K>
 where
     K: TokenKind,
-    F: Fn(&'a str) -> Option<(K, &'a str)>,
+    F: Fn(&mut Input) -> Option<(K, TextRange)>,
 {
-    pub fn new(input: &'a str, f: F) -> Self {
+    pub fn new(input: &str, f: F) -> Self {
         Self {
-            input,
+            input: input.into(),
             f,
             peeked: None,
         }
     }
 }
 
-impl<'a, F, K> Lex<'a, F, K>
+impl<F, K> Lex<F, K>
 where
-    F: Fn(&'a str) -> Option<(K, &'a str)>,
+    F: Fn(&mut Input) -> Option<(K, TextRange)>,
     K: TokenKind,
 {
-    fn lex(&mut self) -> Option<Token<'a, K>> {
+    fn lex(&mut self) -> Option<Token<K>> {
         if let Some(peeked) = self.peeked.take() {
             if let Some(peeked) = peeked.as_ref() {
-                let input = &self.input[peeked.span.len()..];
-                self.input = input;
+                self.input.cursor = peeked.span.end();
             }
             return peeked;
         }
 
-        let (kind, rest) = (self.f)(self.input)?;
+        let (kind, span) = (self.f)(&mut self.input)?;
 
-        let offset = self.input.offset(rest);
-
-        let span = &self.input[0..offset];
-
-        self.input = rest;
         Some(Token::new(span, kind))
     }
 }
 
-impl<'a, F, K> Iterator for Lex<'a, F, K>
+impl<F, K> Iterator for Lex<F, K>
 where
-    F: Fn(&'a str) -> Option<(K, &'a str)>,
+    F: Fn(&mut Input) -> Option<(K, TextRange)>,
     K: TokenKind,
 {
-    type Item = Token<'a, K>;
+    type Item = Token<K>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let input = self.input;
         let mut first = self.lex()?;
 
         while first.kind.is_error() {
             match self.peek() {
                 Some(token) if token.kind.is_error() => {
-                    let first_len = first.span.len();
-                    let second_len = token.span.len();
-                    let len = first_len + second_len;
-                    first.span = &input[..len];
+                    first.span = TextRange::covering(first.span, token.span);
                     self.lex();
                 }
                 _ => break,
@@ -87,32 +78,32 @@ where
     }
 }
 
-impl<'a, F, K> PeekableIterator for Lex<'a, F, K>
+impl<F, K> PeekableIterator for Lex<F, K>
 where
-    F: Fn(&'a str) -> Option<(K, &'a str)>,
+    F: Fn(&mut Input) -> Option<(K, TextRange)>,
     K: TokenKind,
 {
     fn peek(&mut self) -> Option<&Self::Item> {
         if self.peeked.is_none() {
-            let i = self.input;
+            let i = self.input.cursor;
             self.peeked = Some(self.next());
-            self.input = i;
+            self.input.cursor = i;
         }
 
         self.peeked.as_ref().and_then(|i| i.as_ref())
     }
 }
 
-impl<'a, F, K> Lexer<'a, K> for Lex<'a, F, K>
+impl<F, K> Lexer<K> for Lex<F, K>
 where
-    F: Fn(&'a str) -> Option<(K, &'a str)>,
+    F: Fn(&mut Input) -> Option<(K, TextRange)>,
     K: TokenKind,
 {
-    fn input(&self) -> &'a str {
-        self.input
+    fn input(&self) -> Input {
+        self.input.clone()
     }
 
-    fn set_input(&mut self, input: &'a str) {
+    fn set_input(&mut self, input: Input) {
         self.input = input;
     }
 }
